@@ -13,6 +13,11 @@ TOKEN = os.getenv('DISCORD_TOKEN')
 
 
 def rename_old_optout_file(filename):
+    '''
+    Renames filename to filename_old. Appends numbers if filename_old exists
+    :param filename: Name of the file (without extension) to process
+    :return: None
+    '''
     newname = filename+"_old.json"
     num = 1
     while os.path.exists(newname):
@@ -47,6 +52,10 @@ COOLDOWN_TIME = 30
 
 @bot.event
 async def on_ready():
+    '''
+    Simply displays a connection message.
+    :return: None
+    '''
     print(f'{bot.user} has connected to Discord!')
 
 @bot.event
@@ -84,6 +93,11 @@ async def on_message(message):
 
 @bot.command()
 async def opt_out(ctx):
+    '''
+    Allows a user to opt out of the rolerave.
+    :param ctx: ctx
+    :return: None
+    '''
     if not ctx.author.id in opt_out_list:
         opt_out_list.append(ctx.author.id)
         await ctx.send(f"Added {ctx.author.name} to the opt-out list!")
@@ -97,6 +111,11 @@ async def opt_out(ctx):
 
 @bot.command()
 async def opt_in(ctx):
+    '''
+    Intended to alias opt_out. There might be a better way to do this?
+    :param ctx: ctx
+    :return: None
+    '''
     await opt_out(ctx)
 
 # print(TOKEN)
