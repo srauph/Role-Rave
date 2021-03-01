@@ -13,11 +13,12 @@ TOKEN = os.getenv('DISCORD_TOKEN')
 
 
 def create_old_file(filename):
-    '''
+    """
     Renames filename to filename_old. Appends numbers if filename_old exists
+
     :param filename: Name of the file (without extension) to process
     :return: None
-    '''
+    """
     newname = filename+"_old.json"
     num = 1
     while os.path.exists(newname):
@@ -32,7 +33,7 @@ try:
     opt_out_list = json.load(opt_out_file)
     opt_out_file.close()
 except (FileNotFoundError, json.decoder.JSONDecodeError) as e:
-    # print(e)
+    opt_out_file = open("opt_out.json", "r")
     if isinstance(e, FileNotFoundError):
         print("File opt_out.json not found, creating it...")
     elif isinstance(e, json.decoder.JSONDecodeError):
@@ -46,35 +47,41 @@ except (FileNotFoundError, json.decoder.JSONDecodeError) as e:
     opt_out_list = []
 
 # client = discord.Client()
-bot = commands.Bot(command_prefix='!')
-cooldown = []
-globalCooldown = False
-USE_GLOBAL_COOLDOWN = True
-COOLDOWN_TIME = 3
+bot = commands.Bot(command_prefix='!')  # Bot command prefix
+cooldown = []               # Per-User cooldown status
+globalCooldown = False      # Global cooldown status
+USE_GLOBAL_COOLDOWN = True  # Set to True to use the global cooldown
+COOLDOWN_TIME = 3           # Cooldown time (seconds)
+CHECK_BOOSTER_ROLE = True   # Require the users to be a booster for role rave
+CHECK_OPT_OUT = True        # Check if the user opted out
 
 @bot.event
 async def on_ready():
-    '''
+    """
     Simply displays a connection message.
+
     :return: None
-    '''
+    """
     print(f'{bot.user} has connected to Discord!')
 
 @bot.event
 async def on_message(message):
-    '''
+    """
     Does the role rave shenanigans.
+
     :param message: message
     :return: None
-    '''
+    """
 
     global cooldown
     global globalCooldown
-    global opt_out
     member = message.author
     server = member.guild
     isCommand = False           # Set to true if message is a command
     isCooldownActive = False    # Set to true if the cooldown is active
+    isOptedOut = False          # Set to true if user opted out (if applicable)
+    isBooster = True            # Set to false if CHECK_BOOSTER_ROLE and if member is not a booster
+
 
     # Don't process the bot's own messages
     if member == bot.user:
@@ -94,8 +101,23 @@ async def on_message(message):
         if member.id in cooldown:
             isCooldownActive = True
 
+    # Check for booster role
+    # TODO: O(n) time, try and get this to O(1)
+    if CHECK_BOOSTER_ROLE:
+        isBooster = False
+        for role in member.roles:
+            # TODO: Change "Server Booster" with API call to the premium guild role.
+            if role.name == "Server Booster":
+                isBooster = True
+                break
+
+    # Check for opt-out status
+    if CHECK_OPT_OUT and member.id in opt_out_list:
+        isOptedOut = True
+
+
     # Process color change
-    if not isCommand and not isCooldownActive and not member.id in opt_out_list:
+    if isBooster and not isCommand and not isCooldownActive and not isOptedOut:
 
         if USE_GLOBAL_COOLDOWN:
             globalCooldown = True
@@ -108,12 +130,18 @@ async def on_message(message):
 
         color = color_r*65536+color_g*256+color_b
 
-        if not discord.utils.get(server.roles, name=member.name):
-            await server.create_role(name=member.name, colour=discord.Colour(color))
-            role = discord.utils.get(server.roles, name=member.name)
-        else:
-            role = discord.utils.get(server.roles, name=member.name)
+        if USE_GLOBAL_COOLDOWN:
+            # TODO: Change "Server Booster" with API call to the premium guild role.
+            role = discord.utils.get(server.roles, name="Server Booster")
             await role.edit(colour=discord.Colour(color))
+        else:
+            if not discord.utils.get(server.roles, name=member.name):
+                await server.create_role(name=member.name, colour=discord.Colour(color))
+                role = discord.utils.get(server.roles, name=member.name)
+            else:
+                role = discord.utils.get(server.roles, name=member.name)
+                await role.edit(colour=discord.Colour(color))
+
 
         await member.add_roles(role)
         
@@ -128,11 +156,12 @@ async def on_message(message):
 
 @bot.command()
 async def opt_out(ctx):
-    '''
+    """
     Allows a user to opt out of the rolerave.
+
     :param ctx: ctx
     :return: None
-    '''
+    """
     if not ctx.author.id in opt_out_list:
         opt_out_list.append(ctx.author.id)
         await ctx.send(f"Added {ctx.author.name} to the opt-out list!")
@@ -146,11 +175,13 @@ async def opt_out(ctx):
 
 @bot.command()
 async def opt_in(ctx):
-    '''
-    Intended to alias opt_out. There might be a better way to do this?
+    """
+    Intended to alias opt_out.
+
     :param ctx: ctx
     :return: None
-    '''
+    """
+    # TODO: There might be a better way to do this?
     await opt_out(ctx)
 
 # print(TOKEN)
