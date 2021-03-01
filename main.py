@@ -27,27 +27,33 @@ def create_old_file(filename):
     os.rename(filename+".json", newname)
 
 
-
+# Load the opt-out file
 try:
     opt_out_file = open("opt_out.json", "r")
     opt_out_list = json.load(opt_out_file)
     opt_out_file.close()
 except (FileNotFoundError, json.decoder.JSONDecodeError) as e:
     opt_out_file = open("opt_out.json", "r")
+
+    # Create it if it is missing
     if isinstance(e, FileNotFoundError):
         print("File opt_out.json not found, creating it...")
+
+    # Recreate it if the file is bad
     elif isinstance(e, json.decoder.JSONDecodeError):
         print("WARNING: Json file corrupted, re-creating it...")
         opt_out_file.close()
         create_old_file("opt_out")
 
+    # Initialize the opt-out file
     opt_out_file = open("opt_out.json", "w")
     json.dump([], opt_out_file)
     opt_out_file.close()
     opt_out_list = []
 
 # client = discord.Client()
-bot = commands.Bot(command_prefix='!')  # Bot command prefix
+bot = commands.Bot(command_prefix='!')  # Bot object with command prefix
+
 cooldown = []               # Per-User cooldown status
 globalCooldown = False      # Global cooldown status
 USE_GLOBAL_COOLDOWN = True  # Set to True to use the global cooldown
@@ -102,7 +108,6 @@ async def on_message(message):
             isCooldownActive = True
 
     # Check for booster role
-    # TODO: O(n) time, try and get this to O(1)
     if CHECK_BOOSTER_ROLE:
         isBooster = False
         for role in member.roles:
