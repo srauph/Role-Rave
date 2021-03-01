@@ -3,7 +3,7 @@ import discord
 import random
 import asyncio
 import json
-import traceback
+# import traceback
 from dotenv import load_dotenv
 from discord.ext import commands
 
@@ -12,7 +12,7 @@ load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 
 
-def rename_old_optout_file(filename):
+def create_old_file(filename):
     '''
     Renames filename to filename_old. Appends numbers if filename_old exists
     :param filename: Name of the file (without extension) to process
@@ -38,7 +38,7 @@ except (FileNotFoundError, json.decoder.JSONDecodeError) as e:
     elif isinstance(e, json.decoder.JSONDecodeError):
         print("WARNING: Json file corrupted, re-creating it...")
         opt_out_file.close()
-        rename_old_optout_file("opt_out")
+        create_old_file("opt_out")
 
     opt_out_file = open("opt_out.json", "w")
     json.dump([], opt_out_file)
@@ -48,7 +48,9 @@ except (FileNotFoundError, json.decoder.JSONDecodeError) as e:
 # client = discord.Client()
 bot = commands.Bot(command_prefix='!')
 cooldown = []
-COOLDOWN_TIME = 30
+globalCooldown = False
+USE_GLOBAL_COOLDOWN = True
+COOLDOWN_TIME = 3
 
 @bot.event
 async def on_ready():
@@ -60,16 +62,45 @@ async def on_ready():
 
 @bot.event
 async def on_message(message):
+    '''
+    Does the role rave shenanigans.
+    :param message: message
+    :return: None
+    '''
+
     global cooldown
+    global globalCooldown
     global opt_out
     member = message.author
     server = member.guild
+    isCommand = False           # Set to true if message is a command
+    isCooldownActive = False    # Set to true if the cooldown is active
 
+    # Don't process the bot's own messages
     if member == bot.user:
         return
 
-    if not message.content[0] == '!' and not member.id in cooldown and not member.id in opt_out_list:
-        cooldown.append(member.id)
+    # Check if the message is a command
+    try:
+        if message.content[0] == '!':
+            isCommand = True
+    except:
+        pass
+
+    # Check if the cooldown is active
+    if USE_GLOBAL_COOLDOWN:
+        isCooldownActive = globalCooldown
+    else:
+        if member.id in cooldown:
+            isCooldownActive = True
+
+    # Process color change
+    if not isCommand and not isCooldownActive and not member.id in opt_out_list:
+
+        if USE_GLOBAL_COOLDOWN:
+            globalCooldown = True
+        else:
+            cooldown.append(member.id)
 
         color_r = int(random.random()*256)
         color_g = int(random.random()*256)
@@ -87,7 +118,11 @@ async def on_message(message):
         await member.add_roles(role)
         
         await asyncio.sleep(COOLDOWN_TIME)
-        cooldown.remove(member.id)
+
+        if USE_GLOBAL_COOLDOWN:
+            globalCooldown = False
+        else:
+            cooldown.remove(member.id)
 
     await bot.process_commands(message)
 
