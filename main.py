@@ -119,18 +119,21 @@ async def on_message(message):
     # Process color change
     if isBooster and not isCommand and not isCooldownActive and not isOptedOut:
 
+        # Start the cooldown
         if USE_GLOBAL_COOLDOWN:
             globalCooldown = True
         else:
             cooldown.append(member.id)
 
+        # Generate color (hex value stored in integer)
         color_r = int(random.random()*256)
         color_g = int(random.random()*256)
         color_b = int(random.random()*256)
 
         color = color_r*65536+color_g*256+color_b
 
-        if USE_GLOBAL_COOLDOWN:
+        # Apply color change
+        if CHECK_BOOSTER_ROLE:
             # TODO: Change "Server Booster" with API call to the premium guild role.
             role = discord.utils.get(server.roles, name="Server Booster")
             await role.edit(colour=discord.Colour(color))
@@ -141,10 +144,9 @@ async def on_message(message):
             else:
                 role = discord.utils.get(server.roles, name=member.name)
                 await role.edit(colour=discord.Colour(color))
+            await member.add_roles(role)
 
-
-        await member.add_roles(role)
-        
+        # Wait the cooldown duration
         await asyncio.sleep(COOLDOWN_TIME)
 
         if USE_GLOBAL_COOLDOWN:
@@ -152,6 +154,7 @@ async def on_message(message):
         else:
             cooldown.remove(member.id)
 
+    # I had this here for a good reason. I don't remember what that reason is.
     await bot.process_commands(message)
 
 @bot.command()
