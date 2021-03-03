@@ -47,7 +47,7 @@ def load_file(filename):
 
         # Recreate it if the file is bad
         elif isinstance(e, json.decoder.JSONDecodeError):
-            print("WARNING: Json file corrupted, re-creating it...")
+            print(f"WARNING: {filename}.json file corrupted, re-creating it...")
             file.close()
             create_old_file(filename)
 
