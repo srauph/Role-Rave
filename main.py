@@ -19,12 +19,12 @@ def create_old_file(filename):
     :param filename: Name of the file (without extension) to process
     :return: None
     """
-    newname = filename+"_old.json"
+    newname = filename + "_old.json"
     num = 1
     while os.path.exists(newname):
-        newname = filename+"_old"+str(num)+".json"
+        newname = filename + "_old" + str(num) + ".json"
         num += 1
-    os.rename(filename+".json", newname)
+    os.rename(filename + ".json", newname)
 
 
 def load_file(filename):
@@ -86,15 +86,27 @@ bot = commands.Bot(
     help_command=None
 )
 
+cooldown = []  # Per-User cooldown status
+globalCooldown = False  # Global cooldown status
 
-cooldown = []               # Per-User cooldown status
-globalCooldown = False      # Global cooldown status
+useGlobalCooldown = True  # Set to True to use the global cooldown
+cooldownTime = 30  # Cooldown time (seconds)
+checkBoosterRole = True  # Require the users to be a booster for role rave
+checkOptOut = True  # Check if the user opted out
+enableRave = True  # Do the role rave shenanigans
 
-useGlobalCooldown = True    # Set to True to use the global cooldown
-cooldownTime = 30           # Cooldown time (seconds)
-checkBoosterRole = True     # Require the users to be a booster for role rave
-checkOptOut = True          # Check if the user opted out
-enableRave = True           # Do the role rave shenanigans
+blacklist = [(46, 204, 113), (52, 152, 219)]
+blacklist_range = []
+tolerance = 0.2
+
+for color in blacklist:
+    r_min = int(color[0] * (1 - tolerance)) if 0 <= int(color[0] * (1 - tolerance)) else 0
+    g_min = int(color[1] * (1 - tolerance)) if 0 <= int(color[1] * (1 - tolerance)) else 0
+    b_min = int(color[2] * (1 - tolerance)) if 0 <= int(color[2] * (1 - tolerance)) else 0
+    r_max = int(color[0] * (1 + tolerance)) if int(color[0] * (1 + tolerance)) <= 255 else 255
+    g_max = int(color[1] * (1 + tolerance)) if int(color[1] * (1 + tolerance)) <= 255 else 255
+    b_max = int(color[2] * (1 + tolerance)) if int(color[2] * (1 + tolerance)) <= 255 else 255
+    blacklist_range.append(((r_min, g_min, b_min), (r_max, g_max, b_max)))
 
 # Load files
 opt_out_list = load_file("opt_out")
@@ -167,11 +179,10 @@ async def on_message(message):
     global enableRave
     member = message.author
     server = member.guild
-    isCommand = False           # Set to true if message is a command
-    isCooldownActive = False    # Set to true if the cooldown is active
-    isOptedOut = False          # Set to true if user opted out (if applicable)
-    isBooster = True            # Set to false if CHECK_BOOSTER_ROLE and if member is not a booster
-
+    isCommand = False  # Set to true if message is a command
+    isCooldownActive = False  # Set to true if the cooldown is active
+    isOptedOut = False  # Set to true if user opted out (if applicable)
+    isBooster = True  # Set to false if CHECK_BOOSTER_ROLE and if member is not a booster
 
     # Don't process the bot's own messages
     if member == bot.user:
@@ -204,7 +215,6 @@ async def on_message(message):
     if checkOptOut and member.id in opt_out_list:
         isOptedOut = True
 
-
     # Process color change
     if enableRave and isBooster and not isCommand and not isCooldownActive and not isOptedOut:
 
@@ -215,11 +225,23 @@ async def on_message(message):
             cooldown.append(member.id)
 
         # Generate color (hex value stored in integer)
-        color_r = int(random.random()*256)
-        color_g = int(random.random()*256)
-        color_b = int(random.random()*256)
+        unacceptable_color = True
+        while unacceptable_color:
 
-        color = color_r*65536+color_g*256+color_b
+            color_r = int(random.random() * 256)
+            color_g = int(random.random() * 256)
+            color_b = int(random.random() * 256)
+
+            unacceptable_color = False
+
+            for clr in blacklist_range:
+                if clr[0][0] <= color_r <= clr[1][0] \
+                        and clr[0][1] <= color_g <= clr[1][1] \
+                        and clr[0][2] <= color_b <= clr[1][2]:
+                    unacceptable_color = True
+                    break
+
+        color = color_r * 65536 + color_g * 256 + color_b
 
         # Apply color change
         if checkBoosterRole:
@@ -401,7 +423,7 @@ async def help(ctx):
             break
 
     embed = discord.Embed(
-        colour = discord.Colour.magenta()
+        colour=discord.Colour.magenta()
     )
 
     embed.set_author(name="Commands list!")
@@ -453,6 +475,7 @@ async def help(ctx):
     embed.add_field(name="!help", value="Displays this help message", inline=False)
 
     await ctx.send(embed=embed)
+
 
 # print(TOKEN)
 bot.run(TOKEN)
