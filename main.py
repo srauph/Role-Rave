@@ -60,6 +60,7 @@ USE_GLOBAL_COOLDOWN = True  # Set to True to use the global cooldown
 COOLDOWN_TIME = 3           # Cooldown time (seconds)
 CHECK_BOOSTER_ROLE = True   # Require the users to be a booster for role rave
 CHECK_OPT_OUT = True        # Check if the user opted out
+ENABLE_RAVE = True          # Do the role rave shenanigans
 
 @bot.event
 async def on_ready():
@@ -81,6 +82,7 @@ async def on_message(message):
 
     global cooldown
     global globalCooldown
+    global ENABLE_RAVE
     member = message.author
     server = member.guild
     isCommand = False           # Set to true if message is a command
@@ -91,6 +93,10 @@ async def on_message(message):
 
     # Don't process the bot's own messages
     if member == bot.user:
+        return
+
+    # Don't progress if the role rave is turned off
+    if not ENABLE_RAVE:
         return
 
     # Check if the message is a command
@@ -170,16 +176,20 @@ async def opt_out(ctx):
     :param ctx: ctx
     :return: None
     """
-    if not ctx.author.id in opt_out_list:
-        opt_out_list.append(ctx.author.id)
-        await ctx.send(f"Added {ctx.author.name} to the opt-out list!")
-    else:
-        opt_out_list.remove(ctx.author.id)
-        await ctx.send(f"Removed {ctx.author.name} from the opt-out list!")
+    global CHECK_OPT_OUT
+    if CHECK_OPT_OUT:
+        if not ctx.author.id in opt_out_list:
+            opt_out_list.append(ctx.author.id)
+            await ctx.send(f"Added {ctx.author.name} to the opt-out list!")
+        else:
+            opt_out_list.remove(ctx.author.id)
+            await ctx.send(f"Removed {ctx.author.name} from the opt-out list!")
 
-    opt_out_file = open("opt_out.json", "w")
-    json.dump(opt_out_list, opt_out_file)
-    opt_out_file.close()
+        opt_out_file = open("opt_out.json", "w")
+        json.dump(opt_out_list, opt_out_file)
+        opt_out_file.close()
+    else:
+        await ctx.send(f"The opt-out list is currently disabled!")
 
 @bot.command()
 async def opt_in(ctx):
@@ -191,6 +201,90 @@ async def opt_in(ctx):
     """
     # TODO: There might be a better way to do this?
     await opt_out(ctx)
+
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def cooldown(ctx, arg):
+    """
+    Change the cooldown duration (in seconds)
+
+    :param ctx: ctx
+    :return: None
+    """
+    global COOLDOWN_TIME
+    try:
+        COOLDOWN_TIME = int(arg)
+        await ctx.send(f"Set the cooldown time to {COOLDOWN_TIME} seconds!")
+    except:
+        await ctx.send(f"Unsuccessful. Cooldown time remains at {COOLDOWN_TIME} seconds!")
+
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def global_cooldown(ctx, arg):
+    """
+    Toggle global cooldowns
+
+    :param ctx: ctx
+    :return: None
+    """
+    global USE_GLOBAL_COOLDOWN
+    if USE_GLOBAL_COOLDOWN:
+        USE_GLOBAL_COOLDOWN = False
+        await ctx.send(f"Turned off global cooldowns!")
+    else:
+        USE_GLOBAL_COOLDOWN = True
+        await ctx.send(f"Turned on global cooldowns!")
+
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def require_booster(ctx, arg):
+    """
+    Toggle booster requirement
+
+    :param ctx: ctx
+    :return: None
+    """
+    global CHECK_BOOSTER_ROLE
+    if CHECK_BOOSTER_ROLE:
+        CHECK_BOOSTER_ROLE = False
+        await ctx.send(f"Disabled the booster requirement!")
+    else:
+        CHECK_BOOSTER_ROLE = True
+        await ctx.send(f"Enabled the booster requirement!")
+
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def enable_opt_out(ctx, arg):
+    """
+    Toggle opt-out ability
+
+    :param ctx: ctx
+    :return: None
+    """
+    global CHECK_OPT_OUT
+    if CHECK_OPT_OUT:
+        CHECK_OPT_OUT = False
+        await ctx.send(f"Disabled the opt-out list!")
+    else:
+        CHECK_OPT_OUT = True
+        await ctx.send(f"Enabled the opt-out list!")
+
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def enable_rave(ctx, arg):
+    """
+    Toggle opt-out ability
+
+    :param ctx: ctx
+    :return: None
+    """
+    global ENABLE_RAVE
+    if ENABLE_RAVE:
+        ENABLE_RAVE = False
+        await ctx.send(f"Disabled the rave!")
+    else:
+        ENABLE_RAVE = True
+        await ctx.send(f"Enabled the rave!")
 
 # print(TOKEN)
 bot.run(TOKEN)
