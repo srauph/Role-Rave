@@ -95,18 +95,10 @@ checkBoosterRole = True  # Require the users to be a booster for role rave
 checkOptOut = True  # Check if the user opted out
 enableRave = True  # Do the role rave shenanigans
 
-blacklist = [(46, 204, 113), (52, 152, 219)]
-blacklist_range = []
-tolerance = 0.2
-
-for color in blacklist:
-    r_min = int(color[0] * (1 - tolerance)) if 0 <= int(color[0] * (1 - tolerance)) else 0
-    g_min = int(color[1] * (1 - tolerance)) if 0 <= int(color[1] * (1 - tolerance)) else 0
-    b_min = int(color[2] * (1 - tolerance)) if 0 <= int(color[2] * (1 - tolerance)) else 0
-    r_max = int(color[0] * (1 + tolerance)) if int(color[0] * (1 + tolerance)) <= 255 else 255
-    g_max = int(color[1] * (1 + tolerance)) if int(color[1] * (1 + tolerance)) <= 255 else 255
-    b_max = int(color[2] * (1 + tolerance)) if int(color[2] * (1 + tolerance)) <= 255 else 255
-    blacklist_range.append(((r_min, g_min, b_min), (r_max, g_max, b_max)))
+# Variables for regulating blacklisted color ranges
+blacklist = [(46, 204, 113), (52, 152, 219)]  # (r, g, b) tuples of blacklisted colors
+blacklist_range = []  # 2-tuples of (r, g, b) tuples of blacklisted colors, each indicating a blacklisted range
+tolerance = 0.2  # Amount which a color is allowed to differ from a blacklisted one
 
 # Load files
 opt_out_list = load_file("opt_out")
@@ -149,11 +141,21 @@ def load_variables():
         if v[0] == "enableRave": enableRave = v[1]
 
 
+# Load saved vairables unless variables_list is empty
 if variables_list == []:
     save_variables()
 else:
     load_variables()
 
+# Create blacklisted ranges
+for color in blacklist:
+    r_min = int(color[0] * (1 - tolerance)) if 0 <= int(color[0] * (1 - tolerance)) else 0
+    g_min = int(color[1] * (1 - tolerance)) if 0 <= int(color[1] * (1 - tolerance)) else 0
+    b_min = int(color[2] * (1 - tolerance)) if 0 <= int(color[2] * (1 - tolerance)) else 0
+    r_max = int(color[0] * (1 + tolerance)) if int(color[0] * (1 + tolerance)) <= 255 else 255
+    g_max = int(color[1] * (1 + tolerance)) if int(color[1] * (1 + tolerance)) <= 255 else 255
+    b_max = int(color[2] * (1 + tolerance)) if int(color[2] * (1 + tolerance)) <= 255 else 255
+    blacklist_range.append(((r_min, g_min, b_min), (r_max, g_max, b_max)))
 
 @bot.event
 async def on_ready():
