@@ -26,13 +26,20 @@ def create_old_file(filename):
         num += 1
     os.rename(filename+".json", newname)
 
+
 def load_file(filename):
+    """
+    Handles loading a json file, including cases where the file doesn't exist or is corrupted.
+
+    :param filename: Name of the file without extension
+    :return: A list generated from the json data in the file.
+    """
+    file_list = []
     try:
         file = open(f"{filename}.json", "r")
         file_list = json.load(file)
         file.close()
     except (FileNotFoundError, json.decoder.JSONDecodeError) as e:
-        file = open(f"{filename}.json", "r")
 
         # Create it if it is missing
         if isinstance(e, FileNotFoundError):
@@ -52,12 +59,13 @@ def load_file(filename):
     finally:
         return file_list
 
-def process_boolean(arg, bool):
+
+def process_boolean(arg, boolean):
     """
     Assists in processing commands to set boolean values
 
     :param arg: On/true or off/false
-    :param bool: The boolean value being adjusted
+    :param boolean: The boolean value being adjusted
     :return: true/false according to arg, or bool if arg is invalid.
     """
     try:
@@ -67,52 +75,73 @@ def process_boolean(arg, bool):
         elif arg == "off" or arg == "false":
             return False
         else:
-            return bool
+            return boolean
     except Exception:
-        return bool
+        return boolean
 
-# Load the opt-out file
-# try:
-#     opt_out_file = open("opt_out.json", "r")
-#     opt_out_list = json.load(opt_out_file)
-#     opt_out_file.close()
-# except (FileNotFoundError, json.decoder.JSONDecodeError) as e:
-#     opt_out_file = open("opt_out.json", "r")
-#
-#     # Create it if it is missing
-#     if isinstance(e, FileNotFoundError):
-#         print("File opt_out.json not found, creating it...")
-#
-#     # Recreate it if the file is bad
-#     elif isinstance(e, json.decoder.JSONDecodeError):
-#         print("WARNING: Json file corrupted, re-creating it...")
-#         opt_out_file.close()
-#         create_old_file("opt_out")
-#
-#     # Initialize the opt-out file
-#     opt_out_file = open("opt_out.json", "w")
-#     json.dump([], opt_out_file)
-#     opt_out_file.close()
-#     opt_out_list = []
 
-# Load the opt-out file
-opt_out_list = load_file("opt_out")
+# Bot object with command prefix
+bot = commands.Bot(
+    command_prefix='!',
+    help_command=None
+)
 
-# client = discord.Client()
-bot = commands.Bot(command_prefix='!', help_command=None)  # Bot object with command prefix
 
 cooldown = []               # Per-User cooldown status
 globalCooldown = False      # Global cooldown status
-USE_GLOBAL_COOLDOWN = True  # Set to True to use the global cooldown
-COOLDOWN_TIME = 3           # Cooldown time (seconds)
-CHECK_BOOSTER_ROLE = True   # Require the users to be a booster for role rave
-CHECK_OPT_OUT = True        # Check if the user opted out
-ENABLE_RAVE = True          # Do the role rave shenanigans
 
-# Load the constants file
-constants_list = load_file("constants")
-for i in constants_list:
-    if i == "cooldown"
+useGlobalCooldown = True    # Set to True to use the global cooldown
+cooldownTime = 30           # Cooldown time (seconds)
+checkBoosterRole = True     # Require the users to be a booster for role rave
+checkOptOut = True          # Check if the user opted out
+enableRave = True           # Do the role rave shenanigans
+
+# Load files
+opt_out_list = load_file("opt_out")
+variables_list = load_file("variables")
+
+
+def save_variables():
+    """
+    Save the variables to variables.json
+
+    :return: None
+    """
+    global variables_list
+    variables_list = [
+        ("useGlobalCooldown", useGlobalCooldown),
+        ("cooldownTime", cooldownTime),
+        ("checkBoosterRole", checkBoosterRole),
+        ("checkOptOut", checkOptOut),
+        ("enableRave", enableRave)
+    ]
+
+    variables_file = open("variables.json", "w")
+    json.dump(variables_list, variables_file)
+    variables_file.close()
+
+
+def load_variables():
+    """
+    Load the variables from variables_list
+
+    :return: None
+    """
+    global variables_list
+    global useGlobalCooldown, cooldownTime, checkBoosterRole, checkOptOut, enableRave
+    for v in variables_list:
+        if v[0] == "useGlobalCooldown": useGlobalCooldown = v[1]
+        if v[0] == "cooldownTime": cooldownTime = v[1]
+        if v[0] == "checkBoosterRole": checkBoosterRole = v[1]
+        if v[0] == "checkOptOut": checkOptOut = v[1]
+        if v[0] == "enableRave": enableRave = v[1]
+
+
+if variables_list == []:
+    save_variables()
+else:
+    load_variables()
+
 
 @bot.event
 async def on_ready():
@@ -122,6 +151,7 @@ async def on_ready():
     :return: None
     """
     print(f'{bot.user} has connected to Discord!')
+
 
 @bot.event
 async def on_message(message):
@@ -134,7 +164,7 @@ async def on_message(message):
 
     global cooldown
     global globalCooldown
-    global ENABLE_RAVE
+    global enableRave
     member = message.author
     server = member.guild
     isCommand = False           # Set to true if message is a command
@@ -155,14 +185,14 @@ async def on_message(message):
         pass
 
     # Check if the cooldown is active
-    if USE_GLOBAL_COOLDOWN:
+    if useGlobalCooldown:
         isCooldownActive = globalCooldown
     else:
         if member.id in cooldown:
             isCooldownActive = True
 
     # Check for booster role
-    if CHECK_BOOSTER_ROLE:
+    if checkBoosterRole:
         isBooster = False
         for role in member.roles:
             # TODO: Change "Server Booster" with API call to the premium guild role.
@@ -171,15 +201,15 @@ async def on_message(message):
                 break
 
     # Check for opt-out status
-    if CHECK_OPT_OUT and member.id in opt_out_list:
+    if checkOptOut and member.id in opt_out_list:
         isOptedOut = True
 
 
     # Process color change
-    if ENABLE_RAVE and isBooster and not isCommand and not isCooldownActive and not isOptedOut:
+    if enableRave and isBooster and not isCommand and not isCooldownActive and not isOptedOut:
 
         # Start the cooldown
-        if USE_GLOBAL_COOLDOWN:
+        if useGlobalCooldown:
             globalCooldown = True
         else:
             cooldown.append(member.id)
@@ -192,7 +222,7 @@ async def on_message(message):
         color = color_r*65536+color_g*256+color_b
 
         # Apply color change
-        if CHECK_BOOSTER_ROLE:
+        if checkBoosterRole:
             # TODO: Change "Server Booster" with API call to the premium guild role.
             role = discord.utils.get(server.roles, name="Server Booster")
             await role.edit(colour=discord.Colour(color))
@@ -206,15 +236,16 @@ async def on_message(message):
             await member.add_roles(role)
 
         # Wait the cooldown duration
-        await asyncio.sleep(COOLDOWN_TIME)
+        await asyncio.sleep(cooldownTime)
 
-        if USE_GLOBAL_COOLDOWN:
+        if useGlobalCooldown:
             globalCooldown = False
         else:
             cooldown.remove(member.id)
 
     # I had this here for a good reason. I don't remember what that reason is.
     await bot.process_commands(message)
+
 
 @bot.command()
 async def opt_out(ctx):
@@ -224,8 +255,8 @@ async def opt_out(ctx):
     :param ctx: ctx
     :return: None
     """
-    global CHECK_OPT_OUT
-    if CHECK_OPT_OUT:
+    global checkOptOut
+    if checkOptOut:
         if not ctx.author.id in opt_out_list:
             opt_out_list.append(ctx.author.id)
             await ctx.send(f"Added {ctx.author.name} to the opt-out list!")
@@ -238,6 +269,7 @@ async def opt_out(ctx):
         opt_out_file.close()
     else:
         await ctx.send(f"The opt-out list is currently disabled!")
+
 
 @bot.command()
 async def opt_in(ctx):
@@ -261,16 +293,18 @@ async def cooldown(ctx, arg=None):
     :param ctx: ctx
     :return: None
     """
-    global COOLDOWN_TIME
+    global cooldownTime
 
-    if arg == None:
-        await ctx.send(f"The cooldown time is currently {COOLDOWN_TIME} seconds!")
+    if arg is None:
+        await ctx.send(f"The cooldown time is currently {cooldownTime} seconds!")
     else:
         try:
-            COOLDOWN_TIME = int(arg)
-            await ctx.send(f"Set the cooldown time to {COOLDOWN_TIME} seconds!")
-        except:
-            await ctx.send(f"Unsuccessful. Cooldown time remains at {COOLDOWN_TIME} seconds!")
+            cooldownTime = int(arg)
+            await ctx.send(f"Set the cooldown time to {cooldownTime} seconds!")
+            save_variables()
+        except TypeError:
+            await ctx.send(f"Unsuccessful. Cooldown time remains at {cooldownTime} seconds!")
+
 
 @bot.command()
 @commands.has_permissions(administrator=True)
@@ -282,9 +316,12 @@ async def global_cooldown(ctx, arg=None):
     :param ctx: ctx
     :return: None
     """
-    global USE_GLOBAL_COOLDOWN
-    USE_GLOBAL_COOLDOWN = process_boolean(arg, USE_GLOBAL_COOLDOWN)
-    await ctx.send(f"Global cooldowns status: {USE_GLOBAL_COOLDOWN}")
+    global useGlobalCooldown
+    useGlobalCooldown = process_boolean(arg, useGlobalCooldown)
+    if arg is not None:
+        save_variables()
+    await ctx.send(f"Global cooldowns status: {useGlobalCooldown}")
+
 
 @bot.command()
 @commands.has_permissions(administrator=True)
@@ -296,9 +333,12 @@ async def require_booster(ctx, arg=None):
     :param ctx: ctx
     :return: None
     """
-    global CHECK_BOOSTER_ROLE
-    CHECK_BOOSTER_ROLE = process_boolean(arg, CHECK_BOOSTER_ROLE)
-    await ctx.send(f"Booster requirement status: {CHECK_BOOSTER_ROLE}")
+    global checkBoosterRole
+    checkBoosterRole = process_boolean(arg, checkBoosterRole)
+    if arg is not None:
+        save_variables()
+    await ctx.send(f"Booster requirement status: {checkBoosterRole}")
+
 
 @bot.command()
 @commands.has_permissions(administrator=True)
@@ -310,9 +350,12 @@ async def enable_opt_out(ctx, arg=None):
     :param ctx: ctx
     :return: None
     """
-    global CHECK_OPT_OUT
-    CHECK_OPT_OUT = process_boolean(arg, CHECK_OPT_OUT)
-    await ctx.send(f"Opt-out list status: {CHECK_OPT_OUT}")
+    global checkOptOut
+    checkOptOut = process_boolean(arg, checkOptOut)
+    if arg is not None:
+        save_variables()
+    await ctx.send(f"Opt-out list status: {checkOptOut}")
+
 
 @bot.command()
 @commands.has_permissions(administrator=True)
@@ -324,9 +367,12 @@ async def enable_rave(ctx, arg=None):
     :param ctx: ctx
     :return: None
     """
-    global ENABLE_RAVE
-    ENABLE_RAVE = process_boolean(arg, ENABLE_RAVE)
-    await ctx.send(f"Rave status: {ENABLE_RAVE}")
+    global enableRave
+    enableRave = process_boolean(arg, enableRave)
+    if arg is not None:
+        save_variables()
+    await ctx.send(f"Rave status: {enableRave}")
+
 
 @bot.command()
 async def help(ctx):

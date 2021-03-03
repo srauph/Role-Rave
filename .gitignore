@@ -1,4 +1,5 @@
 /.idea
 /venv
 .env
-opt_out.json
+opt_out*.json
+variables*.json
