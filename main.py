@@ -26,7 +26,40 @@ def create_old_file(filename):
         num += 1
     os.rename(filename+".json", newname)
 
+def load_file(filename):
+    try:
+        file = open(f"{filename}.json", "r")
+        file_list = json.load(file)
+        file.close()
+    except (FileNotFoundError, json.decoder.JSONDecodeError) as e:
+        file = open(f"{filename}.json", "r")
+
+        # Create it if it is missing
+        if isinstance(e, FileNotFoundError):
+            print(f"File {filename}.json not found, creating it...")
+
+        # Recreate it if the file is bad
+        elif isinstance(e, json.decoder.JSONDecodeError):
+            print("WARNING: Json file corrupted, re-creating it...")
+            file.close()
+            create_old_file(filename)
+
+        # Initialize the file
+        file = open(f"{filename}.json", "w")
+        json.dump([], file)
+        file.close()
+        file_list = []
+    finally:
+        return file_list
+
 def process_boolean(arg, bool):
+    """
+    Assists in processing commands to set boolean values
+
+    :param arg: On/true or off/false
+    :param bool: The boolean value being adjusted
+    :return: true/false according to arg, or bool if arg is invalid.
+    """
     try:
         arg = arg.lower()
         if arg == "on" or arg == "true":
@@ -39,31 +72,34 @@ def process_boolean(arg, bool):
         return bool
 
 # Load the opt-out file
-try:
-    opt_out_file = open("opt_out.json", "r")
-    opt_out_list = json.load(opt_out_file)
-    opt_out_file.close()
-except (FileNotFoundError, json.decoder.JSONDecodeError) as e:
-    opt_out_file = open("opt_out.json", "r")
+# try:
+#     opt_out_file = open("opt_out.json", "r")
+#     opt_out_list = json.load(opt_out_file)
+#     opt_out_file.close()
+# except (FileNotFoundError, json.decoder.JSONDecodeError) as e:
+#     opt_out_file = open("opt_out.json", "r")
+#
+#     # Create it if it is missing
+#     if isinstance(e, FileNotFoundError):
+#         print("File opt_out.json not found, creating it...")
+#
+#     # Recreate it if the file is bad
+#     elif isinstance(e, json.decoder.JSONDecodeError):
+#         print("WARNING: Json file corrupted, re-creating it...")
+#         opt_out_file.close()
+#         create_old_file("opt_out")
+#
+#     # Initialize the opt-out file
+#     opt_out_file = open("opt_out.json", "w")
+#     json.dump([], opt_out_file)
+#     opt_out_file.close()
+#     opt_out_list = []
 
-    # Create it if it is missing
-    if isinstance(e, FileNotFoundError):
-        print("File opt_out.json not found, creating it...")
-
-    # Recreate it if the file is bad
-    elif isinstance(e, json.decoder.JSONDecodeError):
-        print("WARNING: Json file corrupted, re-creating it...")
-        opt_out_file.close()
-        create_old_file("opt_out")
-
-    # Initialize the opt-out file
-    opt_out_file = open("opt_out.json", "w")
-    json.dump([], opt_out_file)
-    opt_out_file.close()
-    opt_out_list = []
+# Load the opt-out file
+opt_out_list = load_file("opt_out")
 
 # client = discord.Client()
-bot = commands.Bot(command_prefix='!')  # Bot object with command prefix
+bot = commands.Bot(command_prefix='!', help_command=None)  # Bot object with command prefix
 
 cooldown = []               # Per-User cooldown status
 globalCooldown = False      # Global cooldown status
@@ -72,6 +108,11 @@ COOLDOWN_TIME = 3           # Cooldown time (seconds)
 CHECK_BOOSTER_ROLE = True   # Require the users to be a booster for role rave
 CHECK_OPT_OUT = True        # Check if the user opted out
 ENABLE_RAVE = True          # Do the role rave shenanigans
+
+# Load the constants file
+constants_list = load_file("constants")
+for i in constants_list:
+    if i == "cooldown"
 
 @bot.event
 async def on_ready():
@@ -242,16 +283,8 @@ async def global_cooldown(ctx, arg=None):
     :return: None
     """
     global USE_GLOBAL_COOLDOWN
-    try:
-        arg = arg.lower()
-        if arg == "on" or arg == "true":
-            USE_GLOBAL_COOLDOWN = True
-        elif arg == "off" or arg == "false":
-            USE_GLOBAL_COOLDOWN = False
-    except Exception:
-        pass
-    finally:
-        await ctx.send(f"Global cooldowns status: {USE_GLOBAL_COOLDOWN}")
+    USE_GLOBAL_COOLDOWN = process_boolean(arg, USE_GLOBAL_COOLDOWN)
+    await ctx.send(f"Global cooldowns status: {USE_GLOBAL_COOLDOWN}")
 
 @bot.command()
 @commands.has_permissions(administrator=True)
@@ -264,16 +297,8 @@ async def require_booster(ctx, arg=None):
     :return: None
     """
     global CHECK_BOOSTER_ROLE
-    try:
-        arg = arg.lower()
-        if arg == "on" or arg == "true":
-            CHECK_BOOSTER_ROLE = True
-        elif arg == "off" or arg == "false":
-            CHECK_BOOSTER_ROLE = False
-    except Exception:
-        pass
-    finally:
-        await ctx.send(f"Booster requirement status: {CHECK_BOOSTER_ROLE}")
+    CHECK_BOOSTER_ROLE = process_boolean(arg, CHECK_BOOSTER_ROLE)
+    await ctx.send(f"Booster requirement status: {CHECK_BOOSTER_ROLE}")
 
 @bot.command()
 @commands.has_permissions(administrator=True)
@@ -286,16 +311,8 @@ async def enable_opt_out(ctx, arg=None):
     :return: None
     """
     global CHECK_OPT_OUT
-    try:
-        arg = arg.lower()
-        if arg == "on" or arg == "true":
-            CHECK_OPT_OUT = True
-        elif arg == "off" or arg == "false":
-            CHECK_OPT_OUT = False
-    except Exception:
-        pass
-    finally:
-        await ctx.send(f"Opt-out list status: {CHECK_BOOSTER_ROLE}")
+    CHECK_OPT_OUT = process_boolean(arg, CHECK_OPT_OUT)
+    await ctx.send(f"Opt-out list status: {CHECK_OPT_OUT}")
 
 @bot.command()
 @commands.has_permissions(administrator=True)
@@ -310,16 +327,71 @@ async def enable_rave(ctx, arg=None):
     global ENABLE_RAVE
     ENABLE_RAVE = process_boolean(arg, ENABLE_RAVE)
     await ctx.send(f"Rave status: {ENABLE_RAVE}")
-    # try:
-    #     arg = arg.lower()
-    #     if arg == "on" or arg == "true":
-    #         ENABLE_RAVE = True
-    #     elif arg == "off" or arg == "false":
-    #         ENABLE_RAVE = False
-    # except Exception:
-    #     pass
-    # finally:
-    #     await ctx.send(f"Rave status: {ENABLE_RAVE}")
+
+@bot.command()
+async def help(ctx):
+    """
+    Displays commands list.
+
+    :param ctx: ctx
+    :return: None
+    """
+    isAdmin = ctx.author.guild_permissions.administrator
+    isBooster = False
+    for r in ctx.author.roles:
+        if "Server Booster" in r.name:
+            isBooster = True
+            break
+
+
+    embed = discord.Embed(
+        colour = discord.Colour.magenta()
+    )
+
+    embed.set_author(name="Commands list!")
+
+    if isBooster or isAdmin:
+        embed.add_field(
+            name="!opt_out",
+            value="Opts out of the rolerave (Alias: !opt_in)",
+            inline=False
+        )
+
+    if isAdmin:
+        embed.add_field(
+            name="!cooldown",
+            value="Displays the cooldown duration, and change it to [duration] seconds if a valid duration is passed.",
+            inline=False
+        )
+        embed.add_field(
+            name="!cooldown [duration]",
+            value="Change the cooldown duration ",
+            inline=False
+        )
+        embed.add_field(
+            name="!global_cooldown [on/true or off/false]",
+            value="Display the global cooldown status; set it to on (true) or off (false) if a valid arg is passed.",
+            inline=False
+        )
+        embed.add_field(
+            name="!require_booster [on/true or off/false]",
+            value="Display the booster requirement status; set it to on (true) or off (false) if a valid arg is passed.",
+            inline=False
+        )
+        embed.add_field(
+            name="!enable_opt_out [on/true or off/false]",
+            value="Display the opt-out ability status; set it to on (true) or off (false) if a valid arg is passed.",
+            inline=False
+        )
+        embed.add_field(
+            name="!enable_rave [on/true or off/false]",
+            value="Display the rave status; set it to on (true) or off (false) if a valid arg is passed.",
+            inline=False
+        )
+
+    embed.add_field(name="!help", value="Displays this help message", inline=False)
+
+    await ctx.send(embed=embed)
 
 # print(TOKEN)
 bot.run(TOKEN)
