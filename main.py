@@ -257,12 +257,11 @@ async def opt_out(ctx):
     """
     global checkOptOut
     if checkOptOut:
-        if not ctx.author.id in opt_out_list:
+        if ctx.author.id not in opt_out_list:
             opt_out_list.append(ctx.author.id)
             await ctx.send(f"Added {ctx.author.name} to the opt-out list!")
         else:
-            opt_out_list.remove(ctx.author.id)
-            await ctx.send(f"Removed {ctx.author.name} from the opt-out list!")
+            await ctx.send(f"{ctx.author.name}, you already opted out!")
 
         opt_out_file = open("opt_out.json", "w")
         json.dump(opt_out_list, opt_out_file)
@@ -279,8 +278,19 @@ async def opt_in(ctx):
     :param ctx: ctx
     :return: None
     """
-    # TODO: There might be a better way to do this?
-    await opt_out(ctx)
+    global checkOptOut
+    if checkOptOut:
+        if ctx.author.id in opt_out_list:
+            opt_out_list.remove(ctx.author.id)
+            await ctx.send(f"Removed {ctx.author.name} from the opt-out list!")
+        else:
+            await ctx.send(f"{ctx.author.name}, you're already opted in!")
+
+        opt_out_file = open("opt_out.json", "w")
+        json.dump(opt_out_list, opt_out_file)
+        opt_out_file.close()
+    else:
+        await ctx.send(f"The opt-out list is currently disabled!")
 
 
 @bot.command()
@@ -383,12 +393,12 @@ async def help(ctx):
     :return: None
     """
     isAdmin = ctx.author.guild_permissions.administrator
-    isBooster = False
+    isBooster = not checkBoosterRole
+
     for r in ctx.author.roles:
         if "Server Booster" in r.name:
             isBooster = True
             break
-
 
     embed = discord.Embed(
         colour = discord.Colour.magenta()
@@ -399,7 +409,12 @@ async def help(ctx):
     if isBooster or isAdmin:
         embed.add_field(
             name="!opt_out",
-            value="Opts out of the rolerave (Alias: !opt_in)",
+            value="Opts out of the rolerave.",
+            inline=False
+        )
+        embed.add_field(
+            name="!opt_in",
+            value="Opts in to the rolerave.",
             inline=False
         )
 
