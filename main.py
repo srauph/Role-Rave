@@ -26,6 +26,17 @@ def create_old_file(filename):
         num += 1
     os.rename(filename+".json", newname)
 
+def process_boolean(arg, bool):
+    try:
+        arg = arg.lower()
+        if arg == "on" or arg == "true":
+            return True
+        elif arg == "off" or arg == "false":
+            return False
+        else:
+            return bool
+    except Exception:
+        return bool
 
 # Load the opt-out file
 try:
@@ -95,10 +106,6 @@ async def on_message(message):
     if member == bot.user:
         return
 
-    # Don't progress if the role rave is turned off
-    if not ENABLE_RAVE:
-        return
-
     # Check if the message is a command
     try:
         if message.content[0] == '!':
@@ -128,7 +135,7 @@ async def on_message(message):
 
 
     # Process color change
-    if isBooster and not isCommand and not isCooldownActive and not isOptedOut:
+    if ENABLE_RAVE and isBooster and not isCommand and not isCooldownActive and not isOptedOut:
 
         # Start the cooldown
         if USE_GLOBAL_COOLDOWN:
@@ -202,89 +209,117 @@ async def opt_in(ctx):
     # TODO: There might be a better way to do this?
     await opt_out(ctx)
 
+
 @bot.command()
 @commands.has_permissions(administrator=True)
-async def cooldown(ctx, arg):
+async def cooldown(ctx, arg=None):
     """
     Change the cooldown duration (in seconds)
 
+    :param arg: Integer for cooldown duration (seconds)
     :param ctx: ctx
     :return: None
     """
     global COOLDOWN_TIME
-    try:
-        COOLDOWN_TIME = int(arg)
-        await ctx.send(f"Set the cooldown time to {COOLDOWN_TIME} seconds!")
-    except:
-        await ctx.send(f"Unsuccessful. Cooldown time remains at {COOLDOWN_TIME} seconds!")
+
+    if arg == None:
+        await ctx.send(f"The cooldown time is currently {COOLDOWN_TIME} seconds!")
+    else:
+        try:
+            COOLDOWN_TIME = int(arg)
+            await ctx.send(f"Set the cooldown time to {COOLDOWN_TIME} seconds!")
+        except:
+            await ctx.send(f"Unsuccessful. Cooldown time remains at {COOLDOWN_TIME} seconds!")
 
 @bot.command()
 @commands.has_permissions(administrator=True)
-async def global_cooldown(ctx, arg):
+async def global_cooldown(ctx, arg=None):
     """
-    Toggle global cooldowns
+    Display global cooldowns status, and set it to on/true or off/false if a valid arg is passed.
 
+    :param arg: On/True or off/false
     :param ctx: ctx
     :return: None
     """
     global USE_GLOBAL_COOLDOWN
-    if USE_GLOBAL_COOLDOWN:
-        USE_GLOBAL_COOLDOWN = False
-        await ctx.send(f"Turned off global cooldowns!")
-    else:
-        USE_GLOBAL_COOLDOWN = True
-        await ctx.send(f"Turned on global cooldowns!")
+    try:
+        arg = arg.lower()
+        if arg == "on" or arg == "true":
+            USE_GLOBAL_COOLDOWN = True
+        elif arg == "off" or arg == "false":
+            USE_GLOBAL_COOLDOWN = False
+    except Exception:
+        pass
+    finally:
+        await ctx.send(f"Global cooldowns status: {USE_GLOBAL_COOLDOWN}")
 
 @bot.command()
 @commands.has_permissions(administrator=True)
-async def require_booster(ctx, arg):
+async def require_booster(ctx, arg=None):
     """
-    Toggle booster requirement
+    Display booster requirement status, and set it to on/true or off/false if a valid arg is passed.
 
+    :param arg: On/True or off/false
     :param ctx: ctx
     :return: None
     """
     global CHECK_BOOSTER_ROLE
-    if CHECK_BOOSTER_ROLE:
-        CHECK_BOOSTER_ROLE = False
-        await ctx.send(f"Disabled the booster requirement!")
-    else:
-        CHECK_BOOSTER_ROLE = True
-        await ctx.send(f"Enabled the booster requirement!")
+    try:
+        arg = arg.lower()
+        if arg == "on" or arg == "true":
+            CHECK_BOOSTER_ROLE = True
+        elif arg == "off" or arg == "false":
+            CHECK_BOOSTER_ROLE = False
+    except Exception:
+        pass
+    finally:
+        await ctx.send(f"Booster requirement status: {CHECK_BOOSTER_ROLE}")
 
 @bot.command()
 @commands.has_permissions(administrator=True)
-async def enable_opt_out(ctx, arg):
+async def enable_opt_out(ctx, arg=None):
     """
-    Toggle opt-out ability
+    Display opt-out ability status, and set it to on/true or off/false if a valid arg is passed.
 
+    :param arg: On/True or off/false
     :param ctx: ctx
     :return: None
     """
     global CHECK_OPT_OUT
-    if CHECK_OPT_OUT:
-        CHECK_OPT_OUT = False
-        await ctx.send(f"Disabled the opt-out list!")
-    else:
-        CHECK_OPT_OUT = True
-        await ctx.send(f"Enabled the opt-out list!")
+    try:
+        arg = arg.lower()
+        if arg == "on" or arg == "true":
+            CHECK_OPT_OUT = True
+        elif arg == "off" or arg == "false":
+            CHECK_OPT_OUT = False
+    except Exception:
+        pass
+    finally:
+        await ctx.send(f"Opt-out list status: {CHECK_BOOSTER_ROLE}")
 
 @bot.command()
 @commands.has_permissions(administrator=True)
-async def enable_rave(ctx, arg):
+async def enable_rave(ctx, arg=None):
     """
-    Toggle opt-out ability
+    Display rave status, and set it to on/true or off/false if a valid arg is passed.
 
+    :param arg: On/True or off/false
     :param ctx: ctx
     :return: None
     """
     global ENABLE_RAVE
-    if ENABLE_RAVE:
-        ENABLE_RAVE = False
-        await ctx.send(f"Disabled the rave!")
-    else:
-        ENABLE_RAVE = True
-        await ctx.send(f"Enabled the rave!")
+    ENABLE_RAVE = process_boolean(arg, ENABLE_RAVE)
+    await ctx.send(f"Rave status: {ENABLE_RAVE}")
+    # try:
+    #     arg = arg.lower()
+    #     if arg == "on" or arg == "true":
+    #         ENABLE_RAVE = True
+    #     elif arg == "off" or arg == "false":
+    #         ENABLE_RAVE = False
+    # except Exception:
+    #     pass
+    # finally:
+    #     await ctx.send(f"Rave status: {ENABLE_RAVE}")
 
 # print(TOKEN)
 bot.run(TOKEN)
